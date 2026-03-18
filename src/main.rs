@@ -7,6 +7,12 @@ struct Vessel {
     weight: f32,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum AppScreen {
+    Weight,
+    Tare,
+}
+
 fn vessel_image_path(filename: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
@@ -16,7 +22,7 @@ fn vessel_image_path(filename: &str) -> PathBuf {
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 400.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 500.0]),
         ..Default::default()
     };
     eframe::run_native(
@@ -32,6 +38,7 @@ fn main() -> Result<(), eframe::Error> {
 struct MyApp {
     vessels: Vec<Vessel>,
     current_index: usize,
+    current_screen: AppScreen,
 }
 
 impl Default for MyApp {
@@ -55,6 +62,7 @@ impl Default for MyApp {
                 },
             ],
             current_index: 0,
+            current_screen: AppScreen::Weight,
         }
     }
 }
@@ -63,9 +71,13 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.allocate_ui_with_layout(
-                ui.available_size(),
+                egui::vec2(ui.available_width(), 400.0),
                 egui::Layout::centered_and_justified(egui::Direction::TopDown),
                 |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading(format!("Current weight: {}", 1.23));
+                    });
+
                     if self.vessels.is_empty() {
                         ui.heading("No vessels configured");
                         return;
@@ -73,49 +85,63 @@ impl eframe::App for MyApp {
 
                     let vessel = &self.vessels[self.current_index];
 
-                    ui.vertical_centered(|ui| {
-                        ui.heading(format!("Vessel: {}", vessel.name));
-                        ui.label(format!("Weight: {:.2} kg", vessel.weight));
-                    });
-                    // ui.add_space(300.0);
-                    ui.horizontal(|ui| {
-                        let row_width = 80.0 + 100.0 + 300.0 + 100.0 + 80.0;
-                        let left_margin = ((ui.available_width() - row_width) * 0.5).max(0.0);
-                        ui.add_space(left_margin);
+                    if self.current_screen == AppScreen::Tare {
+                        ui.vertical_centered(|ui| {
+                            ui.heading(format!("Vessel: {}", vessel.name));
+                            ui.label(format!("Weight: {:.2} kg", vessel.weight));
+                        });
+                        // ui.add_space(300.0);
+                        ui.horizontal(|ui| {
+                            let row_width = 80.0 + 100.0 + 300.0 + 100.0 + 80.0;
+                            let left_margin = ((ui.available_width() - row_width) * 0.5).max(0.0);
+                            ui.add_space(left_margin);
 
-                        if ui
-                            .add_sized([80.0, 30.0], egui::Button::new("Left"))
-                            .clicked()
-                        {
-                            if self.current_index == 0 {
-                                self.current_index = self.vessels.len() - 1;
+                            if ui
+                                .add_sized([80.0, 30.0], egui::Button::new("Left"))
+                                .clicked()
+                            {
+                                if self.current_index == 0 {
+                                    self.current_index = self.vessels.len() - 1;
+                                } else {
+                                    self.current_index -= 1;
+                                }
+                            };
+                            ui.add_space(100.0);
+                            let image_path = vessel_image_path(vessel.filename);
+                            let image = match std::fs::read(&image_path) {
+                                Ok(bytes) => egui::Image::from_bytes(
+                                    format!("bytes://{}", vessel.filename),
+                                    bytes,
+                                ),
+                                Err(_) => egui::Image::new(egui::include_image!(
+                                    "../assets/images/pan1.png"
+                                )),
+                            };
+                            ui.add(
+                                image
+                                    .fit_to_exact_size(egui::vec2(300.0, 300.0))
+                                    .maintain_aspect_ratio(true),
+                            );
+                            ui.add_space(100.0);
+                            if ui
+                                .add_sized([80.0, 30.0], egui::Button::new("Right"))
+                                .clicked()
+                            {
+                                self.current_index = (self.current_index + 1) % self.vessels.len();
+                            };
+                        });
+                    }
+                    ui.vertical_centered(|ui| {
+                        let is_tare = matches!(self.current_screen, AppScreen::Tare);
+                        let button_label = if is_tare { "Weight" } else { "Tare" };
+
+                        if ui.button(button_label).clicked() {
+                            self.current_screen = if is_tare {
+                                AppScreen::Weight
                             } else {
-                                self.current_index -= 1;
-                            }
-                        };
-                        ui.add_space(100.0);
-                        let image_path = vessel_image_path(vessel.filename);
-                        let image = match std::fs::read(&image_path) {
-                            Ok(bytes) => egui::Image::from_bytes(
-                                format!("bytes://{}", vessel.filename),
-                                bytes,
-                            ),
-                            Err(_) => {
-                                egui::Image::new(egui::include_image!("../assets/images/pan1.png"))
-                            }
-                        };
-                        ui.add(
-                            image
-                                .fit_to_exact_size(egui::vec2(300.0, 300.0))
-                                .maintain_aspect_ratio(true),
-                        );
-                        ui.add_space(100.0);
-                        if ui
-                            .add_sized([80.0, 30.0], egui::Button::new("Right"))
-                            .clicked()
-                        {
-                            self.current_index = (self.current_index + 1) % self.vessels.len();
-                        };
+                                AppScreen::Tare
+                            };
+                        }
                     });
                     // ui.add_space(100.0);
                 },
