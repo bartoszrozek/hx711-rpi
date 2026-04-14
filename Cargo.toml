@@ -10,3 +10,8 @@ path = "src/main.rs"
 [dependencies]
 eframe = "0.33"
 egui_extras = { version = "0.33.3", features = ["image"] }
+anyhow = "1"
+embedded-hal = "1"
+hx711 = "0.7"
+nb = "1"
+rppal = { version = "0.22", features = ["hal"] }

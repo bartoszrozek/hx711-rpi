@@ -74,9 +74,11 @@ impl eframe::App for MyApp {
                 egui::vec2(ui.available_width(), 400.0),
                 egui::Layout::centered_and_justified(egui::Direction::TopDown),
                 |ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.heading(format!("Current weight: {}", 1.23));
-                    });
+                    if self.current_screen == AppScreen::Weight {
+                        ui.vertical_centered(|ui| {
+                            ui.heading(format!("Current weight: {}", 1.23));
+                        });
+                    }
 
                     if self.vessels.is_empty() {
                         ui.heading("No vessels configured");
